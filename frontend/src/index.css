@@ -1,0 +1,90 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-white text-ink-900 antialiased;
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
+    background-image:
+      radial-gradient(circle at 15% 0%, rgba(37, 99, 235, 0.05), transparent 40%),
+      radial-gradient(circle at 100% 20%, rgba(37, 99, 235, 0.04), transparent 35%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    @apply bg-accent-200 text-accent-900;
+  }
+
+  /* Visible keyboard focus everywhere, respecting accessibility */
+  :focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* Core glassmorphism card used across the dashboard */
+  .glass-card {
+    @apply bg-white/70 backdrop-blur-xl border border-white/60 rounded-2xl shadow-card;
+  }
+
+  .glass-card-solid {
+    @apply bg-white border border-ink-100 rounded-2xl shadow-card;
+  }
+
+  .section-container {
+    @apply max-w-7xl mx-auto px-6 lg:px-8;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-5 py-2.5
+           text-sm font-semibold text-white shadow-soft
+           transition-all duration-200 hover:bg-accent-700 hover:shadow-glow
+           active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-2.5
+           text-sm font-semibold text-ink-700 border border-ink-100 shadow-soft
+           transition-all duration-200 hover:border-accent-200 hover:text-accent-700
+           active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .badge-good {
+    @apply inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-1 text-xs font-semibold text-success;
+  }
+  .badge-average {
+    @apply inline-flex items-center gap-1 rounded-full bg-warning/10 px-2.5 py-1 text-xs font-semibold text-warning;
+  }
+  .badge-poor {
+    @apply inline-flex items-center gap-1 rounded-full bg-danger/10 px-2.5 py-1 text-xs font-semibold text-danger;
+  }
+
+  /* Loading skeleton shimmer */
+  .skeleton {
+    @apply relative overflow-hidden bg-ink-100 rounded-xl;
+    background-image: linear-gradient(
+      90deg,
+      rgba(241, 245, 249, 0.6) 0px,
+      rgba(226, 232, 240, 0.9) 40px,
+      rgba(241, 245, 249, 0.6) 80px
+    );
+    background-size: 800px 100%;
+    animation: shimmer 1.6s infinite linear;
+  }
+}

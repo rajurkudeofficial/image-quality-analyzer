@@ -1,0 +1,23 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Uploaded / generated images (runtime data, not source)
+uploads/*
+enhanced/*
+!uploads/.gitkeep
+!enhanced/.gitkeep
+
+# Model weights (large binary files — download separately, see README)
+weights/*.pth
+weights/*.onnx
+
+# Env
+.env
+.env.local
+
+# OS
+.DS_Store

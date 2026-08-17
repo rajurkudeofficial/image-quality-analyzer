@@ -17,10 +17,10 @@ scipy==1.13.1
 # AI Enhancement (Real-ESRGAN stack)
 # NOTE: torch is heavy (GPU build recommended). Install the CUDA build that
 # matches your machine from https://pytorch.org/get-started/locally/
-torch==2.3.1
-torchvision==0.18.1
-basicsr==1.4.2
-realesrgan==0.3.0
+# torch==2.3.1
+# torchvision==0.18.1
+# basicsr==1.4.2
+# realesrgan==0.3.0
 
 # Utilities
 aiofiles==23.2.1

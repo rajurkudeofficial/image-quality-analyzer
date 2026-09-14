@@ -33,6 +33,8 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - name: Install dependencies
         run: npm ci
@@ -40,7 +42,6 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          # Set this repository variable after the FastAPI backend is deployed.
           VITE_API_URL: ${{ vars.VITE_API_URL }}
 
       - name: Upload Pages artifact

@@ -302,4 +302,4 @@ Adjust `MAX_UPLOAD_SIZE_MB` in `config.py` if you need a higher limit.
 
 ## License
 
-MIT — use this freely as a starting point for your own projects.
+MIT License

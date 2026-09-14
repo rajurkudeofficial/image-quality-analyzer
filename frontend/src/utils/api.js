@@ -1,10 +1,11 @@
 import axios from "axios";
 
-// In dev, Vite proxies /analyze, /enhance, /compare, /enhanced to the
-// FastAPI backend (see vite.config.js), so relative paths work both in
-// dev and in a same-origin production deployment behind a reverse proxy.
+// Local development uses Vite's proxy. Production can point directly at the
+// separately hosted FastAPI backend with VITE_API_URL.
+const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+
 const client = axios.create({
-  baseURL: "/",
+  baseURL: API_URL || "/",
   timeout: 120000, // enhancement can be slow, especially on CPU
 });
 
@@ -51,7 +52,7 @@ export async function enhanceOnly(file) {
 export function extractErrorMessage(error) {
   if (error?.response?.data?.detail) return error.response.data.detail;
   if (error?.message === "Network Error") {
-    return "Can't reach the analysis server. Make sure the backend is running on port 8000.";
+    return "Can't reach the analysis server. Make sure the backend is running and the API URL is configured.";
   }
   if (error?.code === "ECONNABORTED") {
     return "The request took too long. Try a smaller image or check the backend logs.";

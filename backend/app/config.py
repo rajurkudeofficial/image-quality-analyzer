@@ -23,6 +23,10 @@ for _dir in (UPLOAD_DIR, ENHANCED_DIR, MODELS_DIR):
 # ---------------------------------------------------------------------------
 MAX_UPLOAD_SIZE_MB = 20
 MAX_UPLOAD_SIZE_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024
+# Keep decoded images bounded so CPU/RAM usage stays reasonable on small
+# cloud instances. This is especially important because enhancement creates
+# several temporary arrays and a 2x upscaled image.
+MAX_IMAGE_PIXELS = 8_000_000
 ALLOWED_CONTENT_TYPES = {"image/png", "image/jpeg", "image/jpg", "image/webp"}
 ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 
@@ -31,7 +35,7 @@ ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 # ---------------------------------------------------------------------------
 CORS_ORIGINS = os.getenv(
     "CORS_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173"
+    "http://localhost:5173,http://127.0.0.1:5173,https://rajurkudeofficial.github.io"
 ).split(",")
 
 # ---------------------------------------------------------------------------
@@ -39,7 +43,7 @@ CORS_ORIGINS = os.getenv(
 # ---------------------------------------------------------------------------
 # "realesrgan"  -> requires torch + realesrgan + downloaded weights + (ideally) GPU
 # "classical"   -> OpenCV/PIL based upscale+sharpen fallback, runs anywhere
-ENHANCEMENT_BACKEND = os.getenv("ENHANCEMENT_BACKEND", "auto")  # auto | realesrgan | classical
+ENHANCEMENT_BACKEND = os.getenv("ENHANCEMENT_BACKEND", "classical")  # auto | realesrgan | classical
 REALESRGAN_MODEL_NAME = "RealESRGAN_x4plus"
 REALESRGAN_SCALE = 4
 REALESRGAN_WEIGHTS_PATH = MODELS_DIR / "RealESRGAN_x4plus.pth"

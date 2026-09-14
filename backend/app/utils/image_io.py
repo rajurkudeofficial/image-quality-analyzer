@@ -3,6 +3,7 @@ Image loading, validation, and persistence helpers shared across routers.
 """
 from __future__ import annotations
 
+import io
 import uuid
 from pathlib import Path
 from typing import Tuple
@@ -15,6 +16,7 @@ from PIL import Image
 from app.config import (
     ALLOWED_CONTENT_TYPES,
     ALLOWED_EXTENSIONS,
+    MAX_IMAGE_PIXELS,
     MAX_UPLOAD_SIZE_BYTES,
 )
 
@@ -44,6 +46,23 @@ def validate_upload(file: UploadFile, content: bytes) -> None:
     if len(content) == 0:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
+    # Check dimensions before OpenCV fully decodes the image. This prevents
+    # very large compressed images from consuming excessive RAM on cloud hosts.
+    try:
+        with Image.open(io.BytesIO(content)) as im:
+            width, height = im.size
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not read image dimensions. File may be corrupted.")
+
+    if width * height > MAX_IMAGE_PIXELS:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Image is too large ({width}x{height}). "
+                f"Maximum supported resolution is {MAX_IMAGE_PIXELS:,} pixels."
+            ),
+        )
+
 
 def bytes_to_bgr(content: bytes) -> np.ndarray:
     """Decode raw image bytes into an OpenCV BGR ndarray. Raises 400 on failure."""
@@ -57,7 +76,6 @@ def bytes_to_bgr(content: bytes) -> np.ndarray:
 def detect_format(content: bytes, fallback_filename: str = "") -> str:
     """Best-effort detection of the actual image format via PIL."""
     try:
-        import io
         with Image.open(io.BytesIO(content)) as im:
             return (im.format or "").upper() or Path(fallback_filename).suffix.lstrip(".").upper()
     except Exception:

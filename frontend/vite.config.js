@@ -1,14 +1,15 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// https://vitejs.dev/config/
+// GitHub Pages serves this repository as a project site:
+// https://rajurkudeofficial.github.io/image-quality-analyzer/
 export default defineConfig({
+  base: "/image-quality-analyzer/",
   plugins: [react()],
   server: {
     port: 5173,
     proxy: {
-      // Forward API calls to the FastAPI backend during development so the
-      // frontend can simply call fetch("/analyze") etc. without CORS pain.
+      // Forward API calls to the FastAPI backend during local development.
       "/analyze": "http://localhost:8000",
       "/enhance": "http://localhost:8000",
       "/compare": "http://localhost:8000",

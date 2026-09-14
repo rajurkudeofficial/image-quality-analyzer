@@ -7,6 +7,8 @@ services:
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     plan: free
     envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.11"
       - key: ENHANCEMENT_BACKEND
         value: classical
       - key: CORS_ORIGINS

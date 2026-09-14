@@ -22,12 +22,10 @@ Metrics implemented:
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, asdict
 from typing import Dict, Any
 
 import cv2
 import numpy as np
-from skimage.measure import shannon_entropy as sk_shannon_entropy
 
 from app.config import QUALITY_WEIGHTS
 
@@ -47,9 +45,6 @@ def estimate_noise(gray: np.ndarray) -> float:
     Fast noise estimation using Immerkaer's method: convolve with a
     Laplacian-like mask designed to cancel out image structure while
     preserving noise, then take the mean absolute response.
-
-    Returns an estimated sigma (noise standard deviation), typically
-    in the 0-25 range for natural photos.
     """
     h, w = gray.shape
     mask = np.array([[1, -2, 1], [-2, 4, -2], [1, -2, 1]], dtype=np.float64)
@@ -60,28 +55,13 @@ def estimate_noise(gray: np.ndarray) -> float:
 
 
 def blur_score(gray: np.ndarray) -> float:
-    """
-    Variance of the Laplacian. Lower values indicate a blurrier image
-    (fewer high-frequency edges). Typical sharp photos score >300-500;
-    heavily blurred images fall below ~50-100.
-
-    Note: this metric is somewhat scale- and denoise-sensitive — a
-    resize or a smoothing step (e.g. bilateral filtering used in the
-    classical enhancer) can lower Laplacian variance even when the
-    image looks subjectively sharper, because it also suppresses fine
-    high-frequency noise the Laplacian responds to. `sharpness_score`
-    (Sobel gradient magnitude) is less sensitive to this and is a
-    useful cross-check when the two disagree.
-    """
+    """Variance of the Laplacian; lower values indicate a blurrier image."""
     lap = cv2.Laplacian(gray, cv2.CV_64F)
     return float(lap.var())
 
 
 def sharpness_score(gray: np.ndarray) -> float:
-    """
-    Mean gradient magnitude via Sobel operators in x and y. Captures
-    overall edge energy in the image as a sharpness proxy.
-    """
+    """Mean gradient magnitude via Sobel operators in x and y."""
     gx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
     gy = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
     magnitude = np.sqrt(gx ** 2 + gy ** 2)
@@ -100,18 +80,10 @@ def contrast_score(gray: np.ndarray) -> float:
 
 
 def compression_artifact_score(gray: np.ndarray) -> float:
-    """
-    Estimates JPEG blockiness by measuring the discontinuity in pixel
-    values across 8x8 block boundaries (the block size used by JPEG's
-    DCT encoding) versus discontinuity within blocks. A higher score
-    means more visible blocking artifacts.
-
-    Returns a 0-100 scale value (0 = no visible blocking, 100 = severe).
-    """
+    """Estimate JPEG blockiness from 8x8 grid-boundary discontinuities."""
     h, w = gray.shape
     gray_f = gray.astype(np.float64)
 
-    # Horizontal boundary differences (columns that fall on 8px grid lines)
     boundary_diffs = []
     non_boundary_diffs = []
 
@@ -134,20 +106,21 @@ def compression_artifact_score(gray: np.ndarray) -> float:
 
     boundary_mean = float(np.mean(boundary_diffs))
     non_boundary_mean = float(np.mean(non_boundary_diffs)) or 1e-6
-
     blockiness_ratio = boundary_mean / non_boundary_mean
-    # Normalize: ratio ~1.0 => no artifacts, ratio >1.5-2.0 => strong artifacts
     score = max(0.0, min(100.0, (blockiness_ratio - 1.0) * 100))
     return float(score)
 
 
 def entropy_score(gray: np.ndarray) -> float:
-    """Shannon entropy of the grayscale image (bits). Range roughly 0-8."""
-    return float(sk_shannon_entropy(gray))
+    """Shannon entropy of an 8-bit grayscale image, in bits."""
+    histogram = np.bincount(gray.ravel(), minlength=256).astype(np.float64)
+    probabilities = histogram / gray.size
+    probabilities = probabilities[probabilities > 0]
+    return float(-np.sum(probabilities * np.log2(probabilities)))
 
 
 def color_statistics(img_bgr: np.ndarray) -> Dict[str, Dict[str, float]]:
-    """Per-channel (R, G, B) mean and standard deviation, plus a 32-bin histogram."""
+    """Per-channel (R, G, B) mean/std plus a 32-bin histogram."""
     b, g, r = cv2.split(img_bgr)
     stats = {}
     for name, channel in (("red", r), ("green", g), ("blue", b)):
@@ -161,9 +134,7 @@ def color_statistics(img_bgr: np.ndarray) -> Dict[str, Dict[str, float]]:
 
 
 # ---------------------------------------------------------------------------
-# Normalization helpers — map raw metric ranges onto a 0-100 "goodness" scale
-# so they can be combined into a single overall score and rendered as
-# progress bars in the UI.
+# Normalization helpers
 # ---------------------------------------------------------------------------
 
 def _clamp(value: float, lo: float = 0.0, hi: float = 100.0) -> float:
@@ -171,44 +142,35 @@ def _clamp(value: float, lo: float = 0.0, hi: float = 100.0) -> float:
 
 
 def normalize_sharpness(raw: float) -> float:
-    # Empirically, gradient-magnitude sharpness above ~40 reads as crisp.
     return _clamp((raw / 40.0) * 100)
 
 
 def normalize_blur(raw: float) -> float:
-    # Variance of Laplacian above ~500 reads as sharp/not blurry.
     return _clamp((raw / 500.0) * 100)
 
 
 def normalize_noise(raw_sigma: float) -> float:
-    # Lower sigma is better. Invert onto a 0-100 "goodness" scale.
-    # sigma of 0 -> 100 (perfect), sigma of 20+ -> 0 (very noisy)
     return _clamp(100 - (raw_sigma / 20.0) * 100)
 
 
 def normalize_brightness(raw: float) -> float:
-    # Ideal brightness centers around 127 (mid-gray). Penalize deviation.
     deviation = abs(raw - 127.5)
     return _clamp(100 - (deviation / 127.5) * 100)
 
 
 def normalize_contrast(raw: float) -> float:
-    # Std dev of ~50-70 is a well-contrasted image; scale accordingly.
     return _clamp((raw / 65.0) * 100)
 
 
 def normalize_compression(raw_score: float) -> float:
-    # raw_score is already 0(good)-100(bad) blockiness; invert.
     return _clamp(100 - raw_score)
 
 
 def normalize_entropy(raw: float) -> float:
-    # Max theoretical entropy for 8-bit grayscale is 8 bits.
     return _clamp((raw / 8.0) * 100)
 
 
 def status_label(normalized_score: float) -> str:
-    """Convert a 0-100 normalized score into a human status label."""
     if normalized_score >= 75:
         return "Good"
     if normalized_score >= 45:
@@ -278,11 +240,7 @@ def generate_recommendations(metrics: Dict[str, Any]) -> list[str]:
 # ---------------------------------------------------------------------------
 
 def analyze_image(img_bgr: np.ndarray, file_size_bytes: int = 0, fmt: str = "") -> Dict[str, Any]:
-    """
-    Run the full analysis pipeline on a loaded BGR image and return a
-    JSON-serializable dict with raw + normalized metrics, status labels,
-    color statistics, and generated recommendations.
-    """
+    """Run the full analysis pipeline and return a JSON-serializable report."""
     gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
 
     raw_noise = estimate_noise(gray)
@@ -314,41 +272,13 @@ def analyze_image(img_bgr: np.ndarray, file_size_bytes: int = 0, fmt: str = "") 
 
     metrics: Dict[str, Any] = {
         "resolution": get_resolution(img_bgr),
-        "noise": {
-            "raw": round(raw_noise, 3),
-            "normalized": round(norm_noise, 1),
-            "status": status_label(norm_noise),
-        },
-        "blur": {
-            "raw": round(raw_blur, 3),
-            "normalized": round(norm_blur, 1),
-            "status": status_label(norm_blur),
-        },
-        "sharpness": {
-            "raw": round(raw_sharpness, 3),
-            "normalized": round(norm_sharpness, 1),
-            "status": status_label(norm_sharpness),
-        },
-        "brightness": {
-            "raw": round(raw_brightness, 3),
-            "normalized": round(norm_brightness, 1),
-            "status": status_label(norm_brightness),
-        },
-        "contrast": {
-            "raw": round(raw_contrast, 3),
-            "normalized": round(norm_contrast, 1),
-            "status": status_label(norm_contrast),
-        },
-        "compression": {
-            "raw": round(raw_compression, 3),
-            "normalized": round(norm_compression, 1),
-            "status": status_label(norm_compression),
-        },
-        "entropy": {
-            "raw": round(raw_entropy, 3),
-            "normalized": round(norm_entropy, 1),
-            "status": status_label(norm_entropy),
-        },
+        "noise": {"raw": round(raw_noise, 3), "normalized": round(norm_noise, 1), "status": status_label(norm_noise)},
+        "blur": {"raw": round(raw_blur, 3), "normalized": round(norm_blur, 1), "status": status_label(norm_blur)},
+        "sharpness": {"raw": round(raw_sharpness, 3), "normalized": round(norm_sharpness, 1), "status": status_label(norm_sharpness)},
+        "brightness": {"raw": round(raw_brightness, 3), "normalized": round(norm_brightness, 1), "status": status_label(norm_brightness)},
+        "contrast": {"raw": round(raw_contrast, 3), "normalized": round(norm_contrast, 1), "status": status_label(norm_contrast)},
+        "compression": {"raw": round(raw_compression, 3), "normalized": round(norm_compression, 1), "status": status_label(norm_compression)},
+        "entropy": {"raw": round(raw_entropy, 3), "normalized": round(norm_entropy, 1), "status": status_label(norm_entropy)},
         "overall_score": overall,
         "overall_status": status_label(overall),
         "color_statistics": color_statistics(img_bgr),

@@ -1,5 +1,7 @@
 # Digital Image Quality Analyzer
 
+## Live - https://rajurkudeofficial.github.io/image-quality-analyzer/
+
 An AI-powered image quality analysis and enhancement platform. Upload an
 image, get a 10-point quality report (resolution, noise, blur, sharpness,
 brightness, contrast, compression artifacts, entropy, color statistics,

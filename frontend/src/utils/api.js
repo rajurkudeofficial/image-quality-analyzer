@@ -1,13 +1,18 @@
 import axios from "axios";
 
-// Local development uses Vite's proxy. Production can point directly at the
+// Local development uses Vite's proxy. Production points directly at the
 // separately hosted FastAPI backend with VITE_API_URL.
 const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
 const client = axios.create({
   baseURL: API_URL || "/",
-  timeout: 120000, // enhancement can be slow, especially on CPU
+  timeout: 120000,
 });
+
+function resolveBackendUrl(value) {
+  if (!value || !API_URL || !value.startsWith("/")) return value;
+  return `${API_URL}${value}`;
+}
 
 /**
  * Run the full analyze -> enhance -> re-analyze -> compare pipeline.
@@ -26,6 +31,11 @@ export async function comparePipeline(file, onUploadProgress) {
       }
     },
   });
+
+  if (data.enhanced_image_url) {
+    data.enhanced_image_url = resolveBackendUrl(data.enhanced_image_url);
+  }
+
   return data;
 }
 
@@ -46,6 +56,9 @@ export async function enhanceOnly(file) {
   const { data } = await client.post("/enhance", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
+  if (data.enhanced_image_url) {
+    data.enhanced_image_url = resolveBackendUrl(data.enhanced_image_url);
+  }
   return data;
 }
 
